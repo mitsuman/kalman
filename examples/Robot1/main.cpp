@@ -66,19 +66,19 @@ int main(int argc, char** argv)
     ukf.init(x);
     
     // Standard-Deviation of noise added to all state vector components during state transition
-    T systemNoise = 0.1;
+    T systemNoise = 0.01;
     // Standard-Deviation of noise added to all measurement vector components in orientation measurements
     T orientationNoise = 0.025;
     // Standard-Deviation of noise added to all measurement vector components in distance measurements
     T distanceNoise = 0.25;
     
     // Simulate for 100 steps
-    const size_t N = 100;
+    const size_t N = 1000;
     for(size_t i = 1; i <= N; i++)
     {
         // Generate some control input
-        u.v() = 1. + std::sin( T(2) * T(M_PI) / T(N) );
-        u.dtheta() = std::sin( T(2) * T(M_PI) / T(N) ) * (1 - 2*(i > 50));
+        u.v() = 1.5f + std::sin( T(2) * T(M_PI) / T(N) );
+        u.dtheta() = T(10 * M_PI) / T(N) + std::sin( T(6) * T(M_PI) / T(N) ) * ((i > N/2) ? 1 : -1);
         
         // Simulate system
         x = sys.f(x, u);
@@ -95,8 +95,8 @@ int main(int argc, char** argv)
         
         // Orientation measurement
         {
-            // We can measure the orientation every 5th step
             OrientationMeasurement orientation = om.h(x);
+            // We can measure the orientation every 5th step
             
             // Measurement is affected by noise as well
             orientation.theta() += orientationNoise * noise(generator);
@@ -128,8 +128,15 @@ int main(int argc, char** argv)
         std::cout   << x.x() << "," << x.y() << "," << x.theta() << ","
                     << x_pred.x() << "," << x_pred.y() << "," << x_pred.theta()  << ","
                     << x_ekf.x() << "," << x_ekf.y() << "," << x_ekf.theta()  << ","
-                    << x_ukf.x() << "," << x_ukf.y() << "," << x_ukf.theta()
-                    << std::endl;
+                    << x_ukf.x() << "," << x_ukf.y() << "," << x_ukf.theta();
+
+        // Print covariance matrix
+        for (int i = 0; i < 2; i++) {
+            Eigen::Matrix3f P = i == 0 ? ekf.getCovariance() : ukf.getCovariance();
+            for (int j = 0; j < 3; j++)
+                std::cout << "," << P(j,0) << "," << P(j,1) << "," << P(j,2);
+        }
+        std::cout << std::endl;
     }
     
     return 0;
